@@ -16,14 +16,15 @@ freq_FR = [0.08167, 0.009, 0.034, 0.036, 0.171, 0.010, 0.0087, 0.0074, 0.075, 0.
 
 # Chiffrement César
 def chiffre_cesar(txt, key):
-    txt = ''
+    result = ''
     for c in txt:
         if c.isalpha():
-            decale = (ord(c.upper()) - ord('A') + key) % 26
-            res += chr(decale + ord('A'))
+            base = ord('A') if c.isupper() else ord('a')
+            decale = (ord(c) - base + key) % 26
+            result += chr(decale + base)
         else:
-            txt += c
-    return txt
+            result += c
+    return result
 
 # Déchiffrement César
 def dechiffre_cesar(txt, key):
@@ -32,30 +33,43 @@ def dechiffre_cesar(txt, key):
 
 # Chiffrement Vigenere
 def chiffre_vigenere(txt, key):
-    txt = ''
-    key = key.upper()
-    for i, c in enumerate(txt):
-        if c.isalpha():
-            k = ord(key[i % len(key)]) - ord('A')
-            decale = (ord(c.upper()) - ord('A') + k) % 26
-            res += chr(decale + ord('A'))
+    res = ""
+    for i in range(len(txt)):
+        c = txt[i]
+        if c in alphabet:
+            d = key[i % len(key)]
+            idx = alphabet.index(c)
+            res += alphabet[(idx + d) % len(alphabet)]
         else:
-            txt += c
-    return txt
+            res += c
+    return res
 
    
 # Déchiffrement Vigenere
-def dechiffre_vigenere(txt, key):
-
-    key_inverse  = ''.join(chr((26 - (ord(k) - ord('A'))) % 26 + ord('A')) for k in cle.upper())
-
-    txt = chiffre_vigenere(txt, key_inverse)
-
-    return txt
+def chiffre_vigenere(txt, key_str):
+    key = [(ord(c.upper()) - ord('A')) for c in key_str]
+    res = ""
+    for i in range(len(txt)):
+        c = txt[i]
+        if c.isalpha():
+            base = ord('A') if c.isupper() else ord('a')
+            decale = key[i % len(key)]
+            res += chr((ord(c) - base + decale) % 26 + base)
+        else:
+            res += c
+    return res
 
 # Analyse de fréquences
+
+def freq(txt):
+    hist = [0] * len(alphabet)
+    for c in txt:
+        if c in alphabet:
+            hist[alphabet.index(c)] += 1
+    return hist
+
+
 def lettre_freq_max(txt):
-    
     hist = freq(txt)
     return hist.index(max(hist))
 
@@ -66,7 +80,17 @@ def lettre_freq_max(txt):
     hist = freq(txt)
     return hist.index(max(hist))
 
+assert freq(alphabet) == [1] * 26
+
 # indice de coïncidence
+def indice_coincidence(hist):
+    
+    total = sum(hist)
+    if total == 0:
+        return 0.0
+    ic = sum([f * (f - 1) for f in hist])
+    return ic / (total * (total - 1)) if total > 1 else 0.0
+
 def longueur_clef(cipher):
     
     best_k = 1
@@ -82,8 +106,6 @@ def longueur_clef(cipher):
             best_ic = ic_moyen
             best_k = k
     return best_k
-
-
 
 # Recherche la longueur de la clé
 def longueur_clef(cipher):
@@ -102,8 +124,6 @@ def longueur_clef(cipher):
             best_k = k
     return best_k
 
-
-    
 # Renvoie le tableau des décalages probables étant
 # donné la longueur de la clé
 # en utilisant la lettre la plus fréquente
@@ -135,10 +155,7 @@ def cryptanalyse_v1(cipher):
 
     return txt
 
-
-
 ################################################################
-
 
 ### Les fonctions suivantes sont utiles uniquement
 ### pour la cryptanalyse V2.
@@ -147,7 +164,6 @@ def cryptanalyse_v1(cipher):
 def indice_coincidence_mutuelle(h1, h2, d):
     
     return sum([h1[i] * h2[(i + d) % 26] for i in range(26)])
-
 
 # Renvoie le tableau des décalages probables étant
 # donné la longueur de la clé
@@ -186,26 +202,32 @@ def cryptanalyse_v2(cipher):
             txt += c
     return txt
 
-
-
 ################################################################
-
 
 ### Les fonctions suivantes sont utiles uniquement
 ### pour la cryptanalyse V3.
 
 # Prend deux listes de même taille et
 # calcule la correlation lineaire de Pearson
-def correlation(L1, L2):
+def correlation(x, y):
+    # Vérifie que les deux listes ont la même longueur
+    if len(x) != len(y):
+        raise ValueError("Les listes doivent avoir la même longueur")
 
-    n = len(L1)
-    moy1 = sum(L1) / n
-    moy2 = sum(L2) / n
-    num = sum((L1[i] - moy1) * (L2[i] - moy2) for i in range(n))
-    den1 = sum((L1[i] - moy1) ** 2 for i in range(n)) ** 0.5
-    den2 = sum((L2[i] - moy2) ** 2 for i in range(n)) ** 0.5
-    return num / (den1 * den2) if den1 and den2 else 0.0
+    # Calcul des moyennes des listes
+    mean_x = sum(x) / len(x)
+    mean_y = sum(y) / len(y)
 
+    # Calcul des termes nécessaires à la corrélation
+    numerator = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(len(x)))
+    denominator = math.sqrt(sum((x[i] - mean_x) ** 2 for i in range(len(x))) * sum((y[i] - mean_y) ** 2 for i in range(len(y))))
+
+    # Calcul de la corrélation
+    return numerator / denominator
+
+# Test
+result = correlation([1, 2, 3, 4], [2, 4, 6, 8])
+print(result)
 
 # Renvoie la meilleur clé possible par correlation
 # étant donné une longueur de clé fixée
@@ -220,7 +242,7 @@ def clef_correlations(cipher, key_length):
         hist_col = freq(col)
         for d in range(26):
             rotated = hist_col[d:] + hist_col[:d]
-            corr = correlation(rotated, freg_FR)
+            corr = correlation(rotated, freq_FR)
             if corr > best_corr:
                 best_corr = corr
                 best_d = d
